@@ -1,199 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>U²-Net Browser Background Remover</title>
+  <meta charset="UTF-8">
+  <title>Magic Background Remover</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 2rem;
-      background: #f4f4f4;
+      background: linear-gradient(135deg, #232526 0%, #414345 100%);
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    h1 { margin-bottom: .5rem; }
-
-    /* Spinner */
-    .spinner {
-      margin: 1rem auto;
-      width: 48px;
-      height: 48px;
-      border: 5px solid rgba(0,0,0,0.1);
-      border-top-color: #007BFF;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
+    .container {
+      background: rgba(255,255,255,0.12);
+      border-radius: 24px;
+      box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
+      backdrop-filter: blur(8px);
+      padding: 2rem 2.5rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    h1 {
+      color: #fff;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      letter-spacing: 1px;
+    }
+    p {
+      color: #e0e0e0;
+      margin-bottom: 2rem;
+    }
+    .upload-label {
+      display: inline-block;
+      padding: 0.75rem 2rem;
+      background: linear-gradient(90deg, #ff8a00 0%, #e52e71 100%);
+      color: #fff;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      transition: box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(229,46,113,0.2);
+    }
+    .upload-label:hover {
+      box-shadow: 0 4px 16px rgba(229,46,113,0.3);
+    }
+    #imageInput {
       display: none;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .preview, .result {
+      margin: 1.5rem 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
     }
-
-    /* Controls */
-    #controls {
-      margin: 1rem 0;
+    .preview img, .result img {
+      border-radius: 16px;
+      max-width: 320px;
+      max-height: 240px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+      background: #fff;
     }
-    input, button {
-      margin: .5rem;
-      padding: .6rem 1.2rem;
-      font-size: 1rem;
+    .download-btn {
+      padding: 0.6rem 1.5rem;
+      background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-weight: bold;
       cursor: pointer;
-    }
-
-    /* Status */
-    #status {
-      font-size: .95rem;
-      color: #333;
-      min-height: 1.2em;
-    }
-
-    /* Output */
-    canvas, img.preview {
-      max-width: 90%;
-      margin: 1rem auto;
-      display: block;
-      border: 1px solid #ccc;
-      background: white;
-    }
-    a.download {
-      display: inline-block;
       margin-top: 1rem;
-      padding: .6rem 1.2rem;
-      text-decoration: none;
-      border-radius: 4px;
-      background: #007BFF;
-      color: white;
+      transition: background 0.2s;
     }
-    a.download:hover { background: #0056b3 }
+    .download-btn:hover {
+      background: linear-gradient(90deg, #185a9d 0%, #43cea2 100%);
+    }
+    /* Overlay Loader Styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(30,30,40,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 1000;
+    }
+    .loading-overlay.active {
+      display: flex;
+    }
+    .loader {
+      width: 80px;
+      height: 80px;
+      border: 10px solid #fff;
+      border-top: 10px solid #e52e71;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 2px 8px rgba(229,46,113,0.2);
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
+    .processing-text {
+      color: #fff;
+      font-size: 1.3rem;
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.18);
+      margin-bottom: 0.5rem;
+    }
   </style>
 </head>
 <body>
-  <h1>Browser-Only U²-Net Background Remover</h1>
-  <div id="controls">
-    <input type="file" id="fileInput" accept="image/*"/>
-    <button id="runBtn" disabled>Remove Background</button>
+  <!-- Loader Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loader"></div>
+    <div class="processing-text">Processing...</div>
   </div>
+  <div class="container">
+    <h1>Magic Background Remover</h1>
+    <p>Upload a photo and get a transparent background in seconds. Powered by AI, runs 100% in your browser for privacy and speed.</p>
+    <label class="upload-label" for="imageInput">Choose Image</label>
+    <input type="file" id="imageInput" accept="image/*">
+    <div class="preview" id="preview" style="display:none;">
+      <span style="color:#fff;">Preview:</span>
+      <img id="previewImg" src="" alt="Preview" />
+    </div>
+    <div class="result" id="result" style="display:none;">
+      <span style="color:#fff;">Result:</span>
+      <img id="resultImg" src="" alt="Result" />
+      <button class="download-btn" id="downloadBtn">Download PNG</button>
+    </div>
+  </div>
+  <script type="module">
+    // Import the background removal library
+    import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/background-removal.min.js';
 
-  <div class="spinner" id="spinner"></div>
-  <div id="status">Initializing…</div>
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const previewImg = document.getElementById('previewImg');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const result = document.getElementById('result');
+    const resultImg = document.getElementById('resultImg');
+    const downloadBtn = document.getElementById('downloadBtn');
 
-  <canvas id="hiddenCanvas" style="display:none;"></canvas>
-  <img id="preview" class="preview" style="display:none" alt="Result"/>
-  <a id="downloadLink" class="download" style="display:none">Download PNG</a>
+    let outputDataUrl = '';
 
-  <!-- ONNX Runtime Web -->
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-  <script>
-    const statusEl = document.getElementById('status');
-    const spinner  = document.getElementById('spinner');
-    const runBtn   = document.getElementById('runBtn');
-    const fileIn   = document.getElementById('fileInput');
-    const canvas   = document.getElementById('hiddenCanvas');
-    const preview  = document.getElementById('preview');
-    const download = document.getElementById('downloadLink');
+    imageInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-    let session, inputName, outputName;
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        previewImg.src = ev.target.result;
+        preview.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
 
-    function setStatus(text, busy = false) {
-      statusEl.textContent = text;
-      spinner.style.display = busy ? 'block' : 'none';
-    }
+      // Hide previous results
+      result.style.display = 'none';
 
-    // 1) Load model from jsDelivr (CORS-friendly) and capture its input/output names
-    (async () => {
-      setStatus('Loading U²-Net model… (~176 MB)', true);
+      // Wait for image to load
+      await new Promise(resolve => {
+        previewImg.onload = resolve;
+      });
+
+      // Show loader overlay
+      loadingOverlay.classList.add('active');
+
+      // Remove background
       try {
-        session = await ort.InferenceSession.create(
-          'https://cdn.jsdelivr.net/gh/xuebinqin/U-2-Net@v1.0/u2net.onnx',
-          { executionProviders: ['wasm'], graphOptimizationLevel: 'all' }
-        );
-        // grab the first input & output names dynamically
-        inputName  = session.inputNames[0];
-        outputName = session.outputNames[0];
-        setStatus('Model loaded ✓ Ready to remove backgrounds.', false);
-        runBtn.disabled = false;
-      } catch (e) {
-        console.error(e);
-        setStatus('❌ Failed to load model. Check your connection.', false);
+        const removed = await removeBackground(previewImg, {
+          model: 'general', // or 'portrait' for people
+          format: 'image/png'
+        });
+        outputDataUrl = removed.dataUrl;
+        resultImg.src = outputDataUrl;
+        result.style.display = 'flex';
+      } catch (err) {
+        alert('Background removal failed. Please try another image.');
+      } finally {
+        loadingOverlay.classList.remove('active');
       }
-    })();
-
-    // Enable “Remove” when a file is selected
-    fileIn.addEventListener('change', () => {
-      runBtn.disabled = !fileIn.files.length;
     });
 
-    // 2) Run inference on click
-    runBtn.addEventListener('click', async () => {
-      if (!fileIn.files.length || !session) return;
-      setStatus('Processing image…', true);
-      runBtn.disabled = true;
-      preview.style.display = download.style.display = 'none';
-
-      // Load image into a temporary <img>
-      const img = new Image();
-      img.src = URL.createObjectURL(fileIn.files[0]);
-      await new Promise(r => img.onload = r);
-
-      // Draw & resize to 320×320 on hidden canvas
-      const W = img.naturalWidth, H = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      canvas.width = canvas.height = 320;
-      ctx.clearRect(0,0,320,320);
-      const scale = Math.min(320/W, 320/H);
-      ctx.drawImage(img, 0,0, W,H, 0,0, W*scale, H*scale);
-
-      // Build input tensor [1,3,320,320]
-      const imgData = ctx.getImageData(0,0,320,320).data;
-      const float32 = new Float32Array(3*320*320);
-      for (let y = 0; y < 320; y++) {
-        for (let x = 0; x < 320; x++) {
-          const i = (y*320 + x)*4;
-          float32[y*320 + x]              = (imgData[i+0]/255 - 0.485)/0.229;
-          float32[1*320*320 + y*320 + x]  = (imgData[i+1]/255 - 0.456)/0.224;
-          float32[2*320*320 + y*320 + x]  = (imgData[i+2]/255 - 0.406)/0.225;
-        }
-      }
-      const tensor = new ort.Tensor('float32', float32, [1,3,320,320]);
-
-      // Inference
-      let output;
-      try {
-        output = await session.run({ [inputName]: tensor });
-      } catch (e) {
-        console.error(e);
-        setStatus('❌ Inference failed.', false);
-        runBtn.disabled = false;
-        return;
-      }
-
-      // Extract the mask and composite it back at full resolution
-      const maskData = output[outputName].data; // float32[320*320]
-      canvas.width = W; canvas.height = H;
-      ctx.clearRect(0,0,W,H);
-      ctx.drawImage(img, 0,0, W,H);
-      const fullImage = ctx.getImageData(0,0,W,H);
-
-      // Nearest-neighbor upsample mask → alpha channel
-      for (let y = 0; y < H; y++) {
-        const yy = Math.floor(y * 320 / H);
-        for (let x = 0; x < W; x++) {
-          const xx = Math.floor(x * 320 / W);
-          const a  = Math.round(maskData[yy*320 + xx] * 255);
-          fullImage.data[(y*W + x)*4 + 3] = a;
-        }
-      }
-      ctx.putImageData(fullImage, 0, 0);
-
-      // Show result & download link
-      const dataUrl = canvas.toDataURL('image/png');
-      preview.src = dataUrl;
-      preview.style.display = 'block';
-      download.href = dataUrl;
-      download.download = 'no-bg.png';
-      download.style.display = 'inline-block';
-
-      setStatus('Done! You can download your PNG ↓', false);
-      runBtn.disabled = false;
+    downloadBtn.addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = outputDataUrl;
+      a.download = 'no-background.png';
+      a.click();
     });
   </script>
 </body>
