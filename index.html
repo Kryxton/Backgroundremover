@@ -2,106 +2,85 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Magic Background Remover</title>
+  <title>AI Background Remover</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      background: linear-gradient(135deg, #232526 0%, #414345 100%);
       min-height: 100vh;
       margin: 0;
-      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #232526 0%, #414345 100%);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: 'Segoe UI', Arial, sans-serif;
     }
     .container {
-      background: rgba(255,255,255,0.12);
-      border-radius: 24px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 28px;
       box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
-      backdrop-filter: blur(8px);
-      padding: 2rem 2.5rem;
+      backdrop-filter: blur(10px);
+      padding: 0;
       max-width: 420px;
-      width: 100%;
-      text-align: center;
+      width: 95vw;
+      height: 80vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       position: relative;
-      z-index: 1;
+      overflow: hidden;
     }
     h1 {
       color: #fff;
       font-size: 2rem;
-      margin-bottom: 0.5rem;
+      margin: 1.1rem 0 0.5rem 0;
+      font-weight: 700;
       letter-spacing: 1px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.18);
+      z-index: 2;
     }
-    p {
+    .subtitle {
       color: #e0e0e0;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      z-index: 2;
+      text-align: center;
+      padding: 0 1.2rem;
     }
-    .upload-label {
-      display: inline-block;
-      padding: 0.75rem 2rem;
-      background: linear-gradient(90deg, #ff8a00 0%, #e52e71 100%);
-      color: #fff;
-      border-radius: 999px;
-      cursor: pointer;
-      font-weight: bold;
-      margin-bottom: 1.5rem;
-      transition: box-shadow 0.2s;
-      box-shadow: 0 2px 8px rgba(229,46,113,0.2);
+    .iframe-wrapper {
+      flex: 1 1 auto;
+      width: 100%;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      position: relative;
+      z-index: 1;
     }
-    .upload-label:hover {
-      box-shadow: 0 4px 16px rgba(229,46,113,0.3);
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 0 0 28px 28px;
+      background: transparent;
+      transition: box-shadow 0.3s;
+      box-shadow: none;
     }
-    #imageInput {
-      display: none;
-    }
-    .preview, .result {
-      margin: 1.5rem 0;
+    /* Loader Overlay */
+    .loader-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(35,37,38,0.45);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-    }
-    .preview img, .result img {
-      border-radius: 16px;
-      max-width: 320px;
-      max-height: 240px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-      background: #fff;
-    }
-    .download-btn {
-      padding: 0.6rem 1.5rem;
-      background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);
-      color: #fff;
-      border: none;
-      border-radius: 999px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 1rem;
-      transition: background 0.2s;
-    }
-    .download-btn:hover {
-      background: linear-gradient(90deg, #185a9d 0%, #43cea2 100%);
-    }
-    /* Overlay Loader Styles */
-    .loading-overlay {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background: rgba(30,30,40,0.45);
-      display: none;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
-      z-index: 1000;
-    }
-    .loading-overlay.active {
-      display: flex;
+      z-index: 10;
+      transition: opacity 0.4s;
     }
     .loader {
-      width: 80px;
-      height: 80px;
-      border: 10px solid #fff;
-      border-top: 10px solid #e52e71;
+      width: 64px;
+      height: 64px;
+      border: 7px solid rgba(255,255,255,0.3);
+      border-top: 7px solid #e52e71;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 1.2rem;
@@ -111,95 +90,61 @@
       0% { transform: rotate(0deg);}
       100% { transform: rotate(360deg);}
     }
-    .processing-text {
+    .loader-text {
       color: #fff;
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       font-weight: 500;
       letter-spacing: 1px;
       text-shadow: 0 2px 8px rgba(0,0,0,0.18);
       margin-bottom: 0.5rem;
     }
+    @media (max-width: 600px) {
+      .container {
+        max-width: 100vw;
+        border-radius: 0;
+        height: 100vh;
+      }
+      iframe {
+        border-radius: 0 0 18px 18px;
+      }
+      h1 {
+        font-size: 1.2rem;
+      }
+      .subtitle {
+        font-size: 0.95rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Loader Overlay -->
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="loader"></div>
-    <div class="processing-text">Processing...</div>
-  </div>
   <div class="container">
-    <h1>Magic Background Remover</h1>
-    <p>Upload a photo and get a transparent background in seconds. Powered by AI, runs 100% in your browser for privacy and speed.</p>
-    <label class="upload-label" for="imageInput">Choose Image</label>
-    <input type="file" id="imageInput" accept="image/*">
-    <div class="preview" id="preview" style="display:none;">
-      <span style="color:#fff;">Preview:</span>
-      <img id="previewImg" src="" alt="Preview" />
+    <h1>AI Background Remover</h1>
+    <div class="subtitle">
+      Instantly remove image backgrounds for free.<br>
+      100% online, no signup required.
     </div>
-    <div class="result" id="result" style="display:none;">
-      <span style="color:#fff;">Result:</span>
-      <img id="resultImg" src="" alt="Result" />
-      <button class="download-btn" id="downloadBtn">Download PNG</button>
+    <div class="iframe-wrapper">
+      <div class="loader-overlay" id="loaderOverlay">
+        <div class="loader"></div>
+        <div class="loader-text">Loading background remover...</div>
+      </div>
+      <iframe
+        src="https://removal.ai/upload/"
+        title="Free AI Background Remover"
+        allow="clipboard-write"
+        id="removerIframe"
+        frameborder="0"
+        sandbox="allow-scripts allow-forms allow-same-origin"
+      ></iframe>
     </div>
   </div>
-  <script type="module">
-    // Import the background removal library
-    import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/background-removal.min.js';
-
-    const imageInput = document.getElementById('imageInput');
-    const preview = document.getElementById('preview');
-    const previewImg = document.getElementById('previewImg');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const result = document.getElementById('result');
-    const resultImg = document.getElementById('resultImg');
-    const downloadBtn = document.getElementById('downloadBtn');
-
-    let outputDataUrl = '';
-
-    imageInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      // Show preview
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        previewImg.src = ev.target.result;
-        preview.style.display = 'flex';
-      };
-      reader.readAsDataURL(file);
-
-      // Hide previous results
-      result.style.display = 'none';
-
-      // Wait for image to load
-      await new Promise(resolve => {
-        previewImg.onload = resolve;
-      });
-
-      // Show loader overlay
-      loadingOverlay.classList.add('active');
-
-      // Remove background
-      try {
-        const removed = await removeBackground(previewImg, {
-          model: 'general', // or 'portrait' for people
-          format: 'image/png'
-        });
-        outputDataUrl = removed.dataUrl;
-        resultImg.src = outputDataUrl;
-        result.style.display = 'flex';
-      } catch (err) {
-        alert('Background removal failed. Please try another image.');
-      } finally {
-        loadingOverlay.classList.remove('active');
-      }
-    });
-
-    downloadBtn.addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.href = outputDataUrl;
-      a.download = 'no-background.png';
-      a.click();
+  <script>
+    // Hide loader when iframe is loaded
+    const iframe = document.getElementById('removerIframe');
+    const loaderOverlay = document.getElementById('loaderOverlay');
+    iframe.addEventListener('load', () => {
+      loaderOverlay.style.opacity = '0';
+      setTimeout(() => loaderOverlay.style.display = 'none', 400);
     });
   </script>
 </body>
