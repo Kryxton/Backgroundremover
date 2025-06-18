@@ -91,17 +91,16 @@
     const preview  = document.getElementById('preview');
     const download = document.getElementById('downloadLink');
 
-    // Helper to show/hide spinner+status
-    function setStatus(text, busy=false) {
+    function setStatus(text, busy = false) {
       statusEl.textContent = text;
       spinner.style.display = busy ? 'block' : 'none';
     }
 
-    // 1) Load model
+    // 1) Load model from jsDelivr (CORS-friendly)
     (async () => {
       setStatus('Loading U²-Net model… (~176 MB)', true);
       window.session = await ort.InferenceSession.create(
-        'https://github.com/xuebinqin/U-2-Net/raw/master/u2net.onnx',
+        'https://cdn.jsdelivr.net/gh/xuebinqin/U-2-Net@master/u2net.onnx',
         { executionProviders: ['wasm'], graphOptimizationLevel: 'all' }
       );
       setStatus('Model loaded ✓ Ready to remove backgrounds.', false);
@@ -111,7 +110,7 @@
       setStatus('❌ Failed to load model.', false);
     });
 
-    // Enable “Remove” when file selected
+    // Enable button once file selected
     fileIn.addEventListener('change', () => {
       runBtn.disabled = !fileIn.files.length;
     });
@@ -129,7 +128,6 @@
       await new Promise(r => img.onload = r);
       const W = img.naturalWidth, H = img.naturalHeight;
       const ctx = canvas.getContext('2d');
-      // draw resized to 320×320
       canvas.width = canvas.height = 320;
       ctx.clearRect(0,0,320,320);
       const scale = Math.min(320/W, 320/H);
@@ -138,12 +136,13 @@
       // Build input tensor
       const data = ctx.getImageData(0,0,320,320).data;
       const float32 = new Float32Array(3*320*320);
-      for (let y=0; y<320; y++) for (let x=0; x<320; x++) {
-        const i = (y*320 + x)*4;
-        // normalize to ImageNet
-        float32[y*320 + x]              = (data[i+0]/255 - 0.485)/0.229;
-        float32[1*320*320 + y*320 + x]  = (data[i+1]/255 - 0.456)/0.224;
-        float32[2*320*320 + y*320 + x]  = (data[i+2]/255 - 0.406)/0.225;
+      for (let y = 0; y < 320; y++) {
+        for (let x = 0; x < 320; x++) {
+          const i = (y*320 + x)*4;
+          float32[y*320 + x]              = (data[i+0]/255 - 0.485)/0.229;
+          float32[1*320*320 + y*320 + x]  = (data[i+1]/255 - 0.456)/0.224;
+          float32[2*320*320 + y*320 + x]  = (data[i+2]/255 - 0.406)/0.225;
+        }
       }
       const tensor = new ort.Tensor('float32', float32, [1,3,320,320]);
 
@@ -158,26 +157,24 @@
         return;
       }
 
-      // Extract mask & upsample to original size
-      const maskData = output['187'].data; // final U²-Net output
-      // Prepare full-res canvas
+      // Extract mask & composite
+      const maskData = output['187'].data; // U²-Net’s final output
       canvas.width = W; canvas.height = H;
       ctx.clearRect(0,0,W,H);
-      ctx.drawImage(img, 0,0, W,H);
+      ctx.drawImage(img, 0,0, W, H);
       const imgBytes = ctx.getImageData(0,0,W,H);
 
-      // Nearest-neighbor upsample the mask → alpha
-      for (let y=0; y<H; y++) {
-        const yy = Math.floor(y*320/H);
-        for (let x=0; x<W; x++) {
-          const xx = Math.floor(x*320/W);
-          const v  = maskData[yy*320 + xx];
-          imgBytes.data[(y*W+x)*4 + 3] = Math.round(v*255);
+      // Nearest-neighbor upsample mask → alpha channel
+      for (let y = 0; y < H; y++) {
+        const yy = Math.floor(y * 320 / H);
+        for (let x = 0; x < W; x++) {
+          const xx = Math.floor(x * 320 / W);
+          imgBytes.data[(y*W + x)*4 + 3] = Math.round(maskData[yy*320 + xx] * 255);
         }
       }
-      ctx.putImageData(imgBytes, 0,0);
+      ctx.putImageData(imgBytes, 0, 0);
 
-      // Show result + download
+      // Show result & download link
       const url = canvas.toDataURL('image/png');
       preview.src = url; preview.style.display = 'block';
       download.href = url; download.download = 'no-bg.png';
